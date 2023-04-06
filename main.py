@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import subprocess
+import collections
 
 # https://github.com/subutux/rmapy/pull/35
 import rmapy.const
@@ -48,14 +50,58 @@ def main(args):
             print("Receive a token at https://my.remarkable.com/device/desktop/connect")
             exit(1)
     
+    # From here, use the go client
+    
     day = datetime.now()
+    date = '{}{}{}'.format(day.year, '%02d'%day.month, '%02d'%day.day)
+
+    source_prefixes = []
+    for name in args.sources:
+        src = sources[name](date, args.only_front)
+        source_prefixes.append(src.name_prefix)
+
+    ls = subprocess.run(["rmapi", "-ni", "ls", args.folder], capture_output=True)
+    if ls.returncode != 0 and "directory doesn't exist" in str(ls.stderr):
+        print("Creating folder", args.folder)
+        mk = subprocess.run(["rmapi", "mkdir", args.folder], capture_output=True)
+        if mk.returncode != 0:
+            print("Couldn't create directory:", mk.stdout, mk.stderr)
+            exit(mk.returncode)
+    elif ls.returncode != 0:
+        print("Couldn't ls:", ls.stdout, ls.stderr)
+        exit(ls.returncode)
+
+    files = ls.stdout.decode().splitlines()
+    files = list(map(lambda x: x.split('\t'), files))
+    files = list(filter(lambda x: x[0] == '[f]', files))
+    files = list(map(lambda x: x[1], files))
+    print("Files on reMarkable in %s: %s" % (args.folder, files))
+
+    dates_for = collections.defaultdict(set)
+    for f in files:
+        for pfx in source_prefixes:
+            if f.startswith(pfx):
+                sfx = f[len(pfx)+1:]
+                dates_for[pfx].add(sfx)
 
     pdfs = {}
     for name in args.sources:
-        src = sources[name](day, args.only_front)
-        pdfs[src.name()] = src.get_pdf()
+        src = sources[name](date, args.only_front)
+        if src.name_prefix in dates_for:
+            if date in dates_for[src.name_prefix]:
+                print("Skipping because already present on reMarkable for {}: {}".format(date, src.name_prefix))
+                continue
+        pdfs[src.name_prefix] = src.get_pdf()
+
+    for key, val in pdfs.items():
+        print("Writing to reMarkable", key, val)
+
+        write = subprocess.run(["rmapi", "-ni", "put", val, args.folder], capture_output=True)
+        if write.returncode != 0:
+            print("Couldn't write file:", write.stdout, write.stderr)
+            exit(write.returncode)
+
     
-    print("Would add:", pdfs)
         
         
 

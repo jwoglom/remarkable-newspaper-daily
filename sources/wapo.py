@@ -4,12 +4,11 @@ import pypdf
 import os
 
 class WapoSource:
-    def __init__(self, day, only_front):
-        self.day = day
+    def __init__(self, date, only_front):
+        self.date = date
         self.only_front = only_front
     
-    def name(self):
-        return "Washington Post"
+    name_prefix = "Washington Post"
 
     def get_json(self, date):
         r = requests.get("https://www.washingtonpost.com/wp-stat/tablet/v1.1/{date}/tablet_{date}.json".format(date=date))
@@ -34,7 +33,7 @@ class WapoSource:
         return "https://www.washingtonpost.com/wp-stat/tablet/v1.1/{date}/{pdf}".format(date=info[0], pdf=info[2])
     
     def get_pdf(self):
-        date = '{}{}{}'.format(self.day.year, '%02d'%self.day.month, '%02d'%self.day.day)
+        date = self.date
         jsond = self.get_json(date)
         if not jsond:
             return None
@@ -57,7 +56,7 @@ class WapoSource:
             merger.append(path)
         
 
-        path = os.path.join(dir, "WashingtonPost-{}.pdf".format(date))
+        path = os.path.join(dir, "{} {}.pdf".format(self.name_prefix, date))
         merger.write(path)
         merger.close()
 
