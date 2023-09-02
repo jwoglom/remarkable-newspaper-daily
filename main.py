@@ -120,7 +120,7 @@ def main(args):
             for sfx in sfxs:
                 date_to_files[sfx].add(pfx)
 
-        all_dates = list(sorted(date_to_files.keys()))
+        all_dates = list(sorted(date_to_files.keys(), key=lambda x: x.split(' ')[::-1]))
         dates_to_delete = all_dates[:total_files-args.max_days]
         items_to_delete = []
         for sfx in dates_to_delete:
