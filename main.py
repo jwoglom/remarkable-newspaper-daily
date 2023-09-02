@@ -28,6 +28,8 @@ def parse_args():
     a.add_argument('--max-days', type=int, default=7, help='Maximum number of days for each source to keep')
     a.add_argument('--folder', default='Newspapers', help='Folder title to write to')
     a.add_argument('--only-front', action="store_true", help='Only fetch front page')
+    a.add_argument('--dry-run', action="store_true", help='Dry run only, do not upload')
+    a.add_argument('--date', default=None, help='override the current day used to fetch newspapers, in YYYYMMDD format')
     a.add_argument('--register-device-token', help='For initial authentication: device token')
     return a.parse_args()
 
@@ -54,6 +56,8 @@ def main(args):
 
     day = datetime.now()
     date = '{}{}{}'.format(day.year, '%02d'%day.month, '%02d'%day.day)
+    if args.date:
+        date = args.date
 
     source_prefixes = []
     for name in args.sources:
@@ -91,10 +95,16 @@ def main(args):
             if date in dates_for[src.name_prefix]:
                 print("Skipping because already present on reMarkable for {}: {}".format(date, src.name_prefix))
                 continue
-        pdfs[src.name_prefix] = src.get_pdf()
+        pdf = src.get_pdf()
+        if pdf:
+            pdfs[src.name_prefix] = pdf
 
     total_files = len(files)
     for key, val in pdfs.items():
+        if args.dry_run:
+            print("Would write to reMarkable", key, val)
+            continue
+
         print("Writing to reMarkable", key, val)
 
         write = subprocess.run(["rmapi", "-ni", "put", val, args.folder], capture_output=True)
@@ -117,15 +127,17 @@ def main(args):
             for pfx in date_to_files[sfx]:
                 items_to_delete.append(pfx+" "+sfx)
 
-        print("Since there are {} files and max_days={}, deleting {} items: {}".format(total_files, args.max_days, len(items_to_delete), items_to_delete))
+        would = 'would delete' if args.dry_run else 'deleting'
+        print("Since there are {} files and max_days={}, {} {} items: {}".format(total_files, args.max_days, would, len(items_to_delete), items_to_delete))
 
-        for item in items_to_delete:
-            rm = subprocess.run(["rmapi", "-ni", "rm", args.folder+"/"+item], capture_output=True)
-            if rm.returncode != 0:
-                print("Couldn't delete file:", rm.stdout, rm.stderr)
-                exit(write.returncode)
-            else:
-                print("Deleted: {}".format(item))
+        if not args.dry_run:
+            for item in items_to_delete:
+                rm = subprocess.run(["rmapi", "-ni", "rm", args.folder+"/"+item], capture_output=True)
+                if rm.returncode != 0:
+                    print("Couldn't delete file:", rm.stdout, rm.stderr)
+                    exit(write.returncode)
+                else:
+                    print("Deleted: {}".format(item))
 
 
 

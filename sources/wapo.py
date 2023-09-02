@@ -7,7 +7,7 @@ class WapoSource:
     def __init__(self, date, only_front):
         self.date = date
         self.only_front = only_front
-    
+
     name_prefix = "Washington Post"
 
     def get_json(self, date):
@@ -28,10 +28,10 @@ class WapoSource:
                     data.append((date, page["page_name"], page["hires_pdf"], page["thumb_300"]))
 
         return data
-    
+
     def get_pdf_url(self, info):
         return "https://www.washingtonpost.com/wp-stat/tablet/v1.1/{date}/{pdf}".format(date=info[0], pdf=info[2])
-    
+
     def get_pdf(self):
         date = self.date
         jsond = self.get_json(date)
@@ -49,12 +49,12 @@ class WapoSource:
             r = requests.get(url)
             if r.status_code//100 != 2:
                 print("Error", r.status_code, url)
-                continue
-            
+                return None
+
             path = os.path.join(dir, page[2])
             open(path, "wb").write(r.content)
             merger.append(path)
-        
+
 
         path = os.path.join(dir, "{} {}.pdf".format(self.name_prefix, date))
         merger.write(path)
