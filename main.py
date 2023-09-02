@@ -25,12 +25,12 @@ sources = {
 def parse_args():
     a = argparse.ArgumentParser(description="Writes daily newspaper PDFs to reMarkable cloud")
     a.add_argument('--sources', nargs='+', choices=list(sources.keys()), help='Sources to utilize')
-    a.add_argument('--max-days', type=int, default=1, help='Maximum number of days for each source to keep')
+    a.add_argument('--max-days', type=int, default=7, help='Maximum number of days for each source to keep')
     a.add_argument('--folder', default='Newspapers', help='Folder title to write to')
     a.add_argument('--only-front', action="store_true", help='Only fetch front page')
     a.add_argument('--register-device-token', help='For initial authentication: device token')
     return a.parse_args()
-    
+
 
 def main(args):
     rm = Client()
@@ -49,9 +49,9 @@ def main(args):
             print("Please authenticate with --register-device-token")
             print("Receive a token at https://my.remarkable.com/device/desktop/connect")
             exit(1)
-    
+
     # From here, use the go client
-    
+
     day = datetime.now()
     date = '{}{}{}'.format(day.year, '%02d'%day.month, '%02d'%day.day)
 
@@ -93,6 +93,7 @@ def main(args):
                 continue
         pdfs[src.name_prefix] = src.get_pdf()
 
+    total_files = len(files)
     for key, val in pdfs.items():
         print("Writing to reMarkable", key, val)
 
@@ -100,10 +101,36 @@ def main(args):
         if write.returncode != 0:
             print("Couldn't write file:", write.stdout, write.stderr)
             exit(write.returncode)
+        else:
+            total_files += 1
 
-    
-        
-        
+    if args.max_days > -1 and total_files > args.max_days:
+        date_to_files = collections.defaultdict(set)
+        for pfx, sfxs in dates_for.items():
+            for sfx in sfxs:
+                date_to_files[sfx].add(pfx)
+
+        all_dates = list(sorted(date_to_files.keys()))
+        dates_to_delete = all_dates[:total_files-args.max_days]
+        items_to_delete = []
+        for sfx in dates_to_delete:
+            for pfx in date_to_files[sfx]:
+                items_to_delete.append(pfx+" "+sfx)
+
+        print("Since there are {} files and max_days={}, deleting {} items: {}".format(total_files, args.max_days, len(items_to_delete), items_to_delete))
+
+        for item in items_to_delete:
+            rm = subprocess.run(["rmapi", "-ni", "rm", args.folder+"/"+item], capture_output=True)
+            if rm.returncode != 0:
+                print("Couldn't delete file:", rm.stdout, rm.stderr)
+                exit(write.returncode)
+            else:
+                print("Deleted: {}".format(item))
+
+
+
+
+
 
 if __name__ == '__main__':
     args = parse_args()
