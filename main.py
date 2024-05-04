@@ -32,11 +32,17 @@ def parse_args():
     a.add_argument('--skip-fetch', action="store_true", help='Skip fetching as dry run')
     a.add_argument('--date', default=None, help='override the current day used to fetch newspapers, in YYYYMMDD format')
     a.add_argument('--register-device-token', help='For initial authentication: device token')
+    a.add_argument('--relogin-command', help='Command to run when relogin is required to remarkable (e.g. send a notification)', default=None)
     return a.parse_args()
 
 
 def main(args):
-    rm = Client()
+    try:
+        rm = Client()
+    except Exception as e:
+        if args.relogin_command:
+            subprocess.run(['/bin/bash', '-c', args.relogin_command])
+        raise e
     if not rm.is_auth():
         print("Not authenticated")
         if args.register_device_token:
@@ -51,6 +57,8 @@ def main(args):
         else:
             print("Please authenticate with --register-device-token")
             print("Receive a token at https://my.remarkable.com/device/desktop/connect")
+            if args.relogin_command:
+                subprocess.run(['/bin/bash', '-c', args.relogin_command])
             exit(1)
 
     # From here, use the go client
