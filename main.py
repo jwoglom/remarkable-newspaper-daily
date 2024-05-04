@@ -29,6 +29,7 @@ def parse_args():
     a.add_argument('--folder', default='Newspapers', help='Folder title to write to')
     a.add_argument('--only-front', action="store_true", help='Only fetch front page')
     a.add_argument('--dry-run', action="store_true", help='Dry run only, do not upload')
+    a.add_argument('--skip-fetch', action="store_true", help='Skip fetching as dry run')
     a.add_argument('--date', default=None, help='override the current day used to fetch newspapers, in YYYYMMDD format')
     a.add_argument('--register-device-token', help='For initial authentication: device token')
     return a.parse_args()
@@ -95,9 +96,10 @@ def main(args):
             if date in dates_for[src.name_prefix]:
                 print("Skipping because already present on reMarkable for {}: {}".format(date, src.name_prefix))
                 continue
-        pdf = src.get_pdf()
-        if pdf:
-            pdfs[src.name_prefix] = pdf
+        if not args.skip_fetch:
+            pdf = src.get_pdf()
+            if pdf:
+                pdfs[src.name_prefix] = pdf
 
     total_files = len(files)
     for key, val in pdfs.items():
