@@ -101,7 +101,6 @@ def main(args):
             if pdf:
                 pdfs[src.name_prefix] = pdf
 
-    total_files = len(files)
     for key, val in pdfs.items():
         if args.dry_run:
             print("Would write to reMarkable", key, val)
@@ -113,33 +112,36 @@ def main(args):
         if write.returncode != 0:
             print("Couldn't write file:", write.stdout, write.stderr)
             exit(write.returncode)
-        else:
-            total_files += 1
 
-    if args.max_days > -1 and total_files > args.max_days:
+    if args.max_days > -1:
         date_to_files = collections.defaultdict(set)
         for pfx, sfxs in dates_for.items():
             for sfx in sfxs:
                 date_to_files[sfx].add(pfx)
+        
+        max_count_for_paper = max([len(i) for i in dates_for.values()])
+        if max_count_for_paper > args.max_days:
+            print(f'{max_count_for_paper=}')
 
-        all_dates = list(sorted(date_to_files.keys(), key=lambda x: x.split(' ')[::-1]))
-        dates_to_delete = all_dates[:total_files-args.max_days]
-        items_to_delete = []
-        for sfx in dates_to_delete:
-            for pfx in date_to_files[sfx]:
-                items_to_delete.append(pfx+" "+sfx)
+            all_dates = list(sorted(date_to_files.keys()))
+            dates_to_delete = all_dates[:len(all_dates)-args.max_days]
+            items_to_delete = []
+            for sfx in dates_to_delete:
+                for pfx in date_to_files[sfx]:
+                    items_to_delete.append(pfx+" "+sfx)
 
-        would = 'would delete' if args.dry_run else 'deleting'
-        print("Since there are {} files and max_days={}, {} {} items: {}".format(total_files, args.max_days, would, len(items_to_delete), items_to_delete))
+            would = 'would delete' if args.dry_run else 'deleting'
+            print("Since there are {} dates and max_days={}, {} {} dates: {}".format(max_count_for_paper, args.max_days, would, len(items_to_delete), dates_to_delete))
+            print("Deleting items: {}".format(items_to_delete))
 
-        if not args.dry_run:
-            for item in items_to_delete:
-                rm = subprocess.run(["rmapi", "-ni", "rm", args.folder+"/"+item], capture_output=True)
-                if rm.returncode != 0:
-                    print("Couldn't delete file:", rm.stdout, rm.stderr)
-                    exit(write.returncode)
-                else:
-                    print("Deleted: {}".format(item))
+            if not args.dry_run:
+                for item in items_to_delete:
+                    rm = subprocess.run(["rmapi", "-ni", "rm", args.folder+"/"+item], capture_output=True)
+                    if rm.returncode != 0:
+                        print("Couldn't delete file:", rm.stdout, rm.stderr)
+                        exit(write.returncode)
+                    else:
+                        print("Deleted: {}".format(item))
 
 
 
