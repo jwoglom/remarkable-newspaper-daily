@@ -99,12 +99,14 @@ def main(args):
 
     pdfs = {}
     for name in args.sources:
+        print(f'sources[{name=}]({date=}, {args.only_front=})')
         src = sources[name](date, args.only_front)
         if src.name_prefix in dates_for:
             if date in dates_for[src.name_prefix]:
                 print("Skipping because already present on reMarkable for {}: {}".format(date, src.name_prefix))
                 continue
         if not args.skip_fetch:
+            print(f'get_pdf(sources[{name=}]({date=}, {args.only_front=}))')
             pdf = src.get_pdf()
             if pdf:
                 pdfs[src.name_prefix] = pdf
