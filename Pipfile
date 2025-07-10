@@ -10,8 +10,5 @@ pypdf = "*"
 
 [dev-packages]
 
-[requires]
-python_version = "3.10"
-
 [scripts]
 "main.py" = "python3 main.py"
