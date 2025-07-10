@@ -1,7 +1,13 @@
-import requests
 import tempfile
 import pypdf
 import os
+
+try:
+    import primp
+    requests = primp.Client(impersonate='chrome_130')
+except ImportError:
+    print("Warning: primp not installed, using requests")
+    import requests
 
 NYT_URL_PATH = os.getenv('NYT_URL_PATH', 'http://www.nytimes.com/images/{}/nytfrontpage/{}')
 
@@ -19,7 +25,7 @@ class NytSource:
         y, m, d = self.date[:4], self.date[4:6], self.date[6:8]
 
         dir = tempfile.gettempdir()
-        merger = pypdf.PdfMerger()
+        writer = pypdf.PdfWriter()
         url = self.get_pdf_url(y, m, d)
         print("nyt: fetching", url)
         r = requests.get(url)
@@ -29,12 +35,14 @@ class NytSource:
         else:
             path = os.path.join(dir, "scan.pdf")
             open(path, "wb").write(r.content)
-            merger.append(path)
+            with open(path, "rb") as file:
+                reader = pypdf.PdfReader(file)
+                writer.append_pages_from_reader(reader)
 
 
         path = os.path.join(dir, "{} {}.pdf".format(self.name_prefix, self.date))
-        merger.write(path)
-        merger.close()
+        with open(path, "wb") as output_file:
+            writer.write(output_file)
 
         return path
 
