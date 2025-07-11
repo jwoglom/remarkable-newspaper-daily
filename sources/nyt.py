@@ -26,18 +26,29 @@ class NytSource:
 
         dir = tempfile.gettempdir()
         writer = pypdf.PdfWriter()
-        url = self.get_pdf_url(y, m, d)
-        print("nyt: fetching", url)
-        r = requests.get(url)
-        if r.status_code//100 != 2:
-            print("Error", r.status_code, url)
-            return None
-        else:
-            path = os.path.join(dir, "scan.pdf")
-            open(path, "wb").write(r.content)
-            with open(path, "rb") as file:
-                reader = pypdf.PdfReader(file)
-                writer.append_pages_from_reader(reader)
+        def _fetch_with(name, domain):
+            url = self.get_pdf_url(y, m, d, name=name)
+            if domain:
+                url = url.replace('www.nytimes.com', domain)
+            print("nyt: fetching", url)
+            r = requests.get(url)
+            if r.status_code//100 != 2:
+                print("Error", r.status_code, url)
+                return None
+            else:
+                path = os.path.join(dir, "scan.pdf")
+                open(path, "wb").write(r.content)
+                with open(path, "rb") as file:
+                    reader = pypdf.PdfReader(file)
+                    writer.append_pages_from_reader(reader)
+                    return True
+
+        if not _fetch_with('scan.pdf', None):
+            if not _fetch_with('scannat.pdf', None):
+                if not _fetch_with('scan.pdf', 'static01.nyt.com'):
+                    if not _fetch_with('scannat.pdf', 'static01.nyt.com'):
+                        print("Error: failed to fetch any NYT pdf")
+                        return None
 
 
         path = os.path.join(dir, "{} {}.pdf".format(self.name_prefix, self.date))
